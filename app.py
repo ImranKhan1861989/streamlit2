@@ -4,14 +4,18 @@
 # In[1]:
 
 
+import sklearn
 import pandas as pd
 import numpy as np
 from sklearn.ensemble import RandomForestClassifier
+from sklearn.model_selection import train_test_split
+from sklearn.metrics import accuracy_score
 import streamlit as st
-import joblib
 
-# Generate synthetic data (for demonstration purposes)
+# Generate synthetic data
 np.random.seed(0)
+
+# Example dataset with synthetic profile and activity data
 data = {
     'user_id': np.arange(1, 1001),  # Example user IDs
     'age': np.random.randint(18, 65, 1000),  # Random ages between 18 and 64
@@ -28,6 +32,8 @@ data = {
 df = pd.DataFrame(data)
 
 # Additional feature engineering (synthetic examples)
+# Generate some additional synthetic features for demonstration
+# These would typically be derived from more detailed data sources in real scenarios
 df['friend_interaction_score'] = df['num_friends'] + df['likes_last_month'] + df['comments_last_month']
 df['high_activity_period'] = np.where((df['posts_last_month'] > 30) | (df['comments_last_month'] > 50), 1, 0)
 
@@ -46,16 +52,12 @@ model_month.fit(X, y_month)
 model_day = RandomForestClassifier(random_state=0)
 model_day.fit(X, y_day)
 
-# Save trained models using joblib
-joblib.dump(model_month, 'model_month.joblib')
-joblib.dump(model_day, 'model_day.joblib')
+# Store the list of expected features when training the model
+expected_features = X.columns
 
 # Function to predict birthday month and day
 def predict_birthday(user_age, relationship_status, education_level, num_friends, posts_last_month, comments_last_month, likes_last_month):
-    # Load models from joblib files
-    model_month = joblib.load('model_month.joblib')
-    model_day = joblib.load('model_day.joblib')
-    
+    # Create a dataframe with user input
     user_data = pd.DataFrame({
         'age': [user_age],
         'relationship_status': [relationship_status],
@@ -66,8 +68,13 @@ def predict_birthday(user_age, relationship_status, education_level, num_friends
         'likes_last_month': [likes_last_month],
     })
 
+    # Convert categorical variables to numeric using one-hot encoding
     user_data = pd.get_dummies(user_data, columns=['relationship_status', 'education_level'])
 
+    # Ensure the user data has all expected features
+    user_data = user_data.reindex(columns=expected_features, fill_value=0)
+
+    # Predict month and day
     predicted_month = model_month.predict(user_data)
     predicted_day = model_day.predict(user_data)
 
@@ -91,17 +98,3 @@ if st.sidebar.button('Predict Birthday'):
     predicted_month, predicted_day = predict_birthday(user_age, relationship_status, education_level, num_friends, posts_last_month, comments_last_month, likes_last_month)
     st.write(f"Predicted birthday month: {predicted_month}")
     st.write(f"Predicted birthday day: {predicted_day}")
-
-
-# In[2]:
-
-
-import streamlit as st
-
-def main():
-    st.title('My Streamlit App')
-    st.write('Hello, world!')
-
-if __name__ == '__main__':
-    main()
-
